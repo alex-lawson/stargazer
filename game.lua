@@ -40,16 +40,14 @@ function Game:init()
             offset = vec2(-3, -3),
             place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star5.png"),
-            color = {255, 255, 255, 220},
-            clear_rect = rect(-4, -4, 5, 5)
+            color = {255, 255, 255, 220}
         },
         {
             count = 10,
             offset = vec2(-2, -2),
             place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star4.png"),
-            color = {255, 255, 255, 220},
-            clear_rect = rect(-3, -3, 4, 4)
+            color = {255, 255, 255, 220}
         }
     }
 
@@ -60,12 +58,16 @@ function Game:init()
     self.cons_star_count = {6, 12}
     self.cons_star_dist = {30, 80}
     self.cons_star_clearance = 25
-    self.cons_line_clearance = {10, 5}
-    self.cons_rect = rect(50, 10, 300, 190)
-    self.cons_loop_chance = 0.5
+    self.cons_line_clearance = {20, 5}
+    self.cons_rect = rect(50, 40, 300, 190)
+    self.cons_loop_chance = 0.3
+    self.cons_loop_tries = 5
+    self.cons_branch_chance = 0.3
 
     self.cons_max_fails = 100
     self.cons_chain_tries = 5
+
+    self.cons_place_shift = {40, 20}
 
     self:create_stars()
     self:create_cons()
@@ -262,14 +264,57 @@ function Game:create_cons()
             local padding = (new_star.position - cur_star.position):norm() * self.cons_star_padding
             table.insert(self.cons_lines, {cur_star.position + padding, new_star.position - padding})
 
-            -- todo: extra connections
+            if math.random() < self.cons_loop_chance then
+                local loop_star
+                local loop_tries = 0
+                while not loop_star and loop_tries < self.cons_loop_tries do
+                    local cand_loop_star = cons_stars[math.random(1, #cons_stars)]
+                    if cand_loop_star ~= cur_star and cand_loop_star ~= new_star then
+                        if conn_valid(new_star, cand_loop_star) then
+                            loop_star = cand_loop_star
+                        end
+                    end
+                    loop_tries = loop_tries + 1
+                end
 
-            cur_star = new_star
+                if loop_star then
+                    local padding = (loop_star.position - new_star.position):norm() * self.cons_star_padding
+                    table.insert(self.cons_lines, {new_star.position + padding, loop_star.position - padding})
+                end
+            end
+
+            if math.random() < self.cons_branch_chance then
+                cur_star = cons_stars[math.random(1, #cons_stars)]
+            else
+                cur_star = new_star
+            end
         else
             cur_star = cons_stars[math.random(1, #cons_stars)]
             fails = fails + 1
         end
     end
 
-    printf("cons has %s lines %s stars with %s fails", #self.cons_lines, #cons_stars, fails)
+    -- translate constellation into center view
+
+    local cons_bounds = rect(cons_stars[1].position[1], cons_stars[1].position[2], cons_stars[1].position[1], cons_stars[1].position[2])
+    for _, star in pairs(cons_stars) do
+        cons_bounds = cons_bounds:combine(star.position)
+    end
+
+    local translate = self.cons_rect:center() - cons_bounds:center()
+    translate = translate + vec2(
+        (math.random() - 0.5) * 2 * self.cons_place_shift[1],
+        (math.random() - 0.5) * 2 * self.cons_place_shift[2]
+    )
+
+    for _, star in pairs(cons_stars) do
+        star.position = star.position + translate
+        star.draw_position = star.draw_position + translate
+    end
+    for _, line in pairs(self.cons_lines) do
+        line[1] = line[1] + translate
+        line[2] = line[2] + translate
+    end
+
+    -- printf("cons has %s lines %s stars with %s fails", #self.cons_lines, #cons_stars, fails)
 end
