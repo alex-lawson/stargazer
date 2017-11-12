@@ -83,3 +83,25 @@ function lines_intersect( a, b, c, d )
 
     return false
 end
+
+function perp_dist(p, a, b)
+    local dir = (b - a):norm()
+    local perp = vec2(dir[2], -dir[1])
+    local test_p = p - a
+    return math.abs(test_p:dot(perp))
+end
+
+function par_seg_dist(p, a, b)
+    local dir = (b - a)
+    local len = dir:mag()
+    dir = dir:norm()
+    local test_p = p - a
+    local dist = test_p:dot(dir)
+    if dist < 0 then
+        return -dist
+    elseif dist > len then
+        return dist - len
+    else
+        return 0
+    end
+end
