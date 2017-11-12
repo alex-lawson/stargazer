@@ -11,9 +11,6 @@ require 'util/animation'
 require 'game'
 
 function love.load()
-    GuiFont = love.graphics.newFont("fonts/cour.ttf", 16)
-    love.graphics.setFont(GuiFont)
-
     love.graphics.setDefaultFilter("nearest")
 
     MainCamera = Camera()

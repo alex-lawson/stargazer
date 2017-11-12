@@ -1,7 +1,12 @@
+require 'name_gen_config'
+require 'name_gen'
+
 Game = class()
 
 function Game:init()
     math.randomseed(os.time())
+
+    self.name_gen = NameGenerator(name_gen_config)
 
     self.screen_size = vec2(400, 300)
     self.screen_center = (self.screen_size * 0.5):floor()
@@ -52,7 +57,9 @@ function Game:init()
         }
     }
 
-    self.cons_line_color = {255, 255, 255, 220}
+    self.cons_name_color = {255, 255, 255, 255}
+
+    self.cons_line_color = {230, 230, 255, 220}
     self.cons_line_width = 0.5
     self.cons_star_padding = 5
 
@@ -60,7 +67,7 @@ function Game:init()
     self.cons_star_dist = {30, 80}
     self.cons_star_clearance = 25
     self.cons_line_clearance = {20, 5}
-    self.cons_rect = rect(50, 40, 300, 190)
+    self.cons_rect = rect(50, 60, 300, 210)
     self.cons_loop_chance = 0.25
     self.cons_loop_tries = 5
     self.cons_branch_chance = 0.3
@@ -68,10 +75,12 @@ function Game:init()
     self.cons_max_fails = 100
     self.cons_chain_tries = 5
 
-    self.cons_place_shift = {40, 20}
+    self.cons_place_shift = {20, 10}
 
     self.transition_fade_time = 0.25
     self.transition_move_time = 3
+
+    self.cons_name_font = love.graphics.newFont("fonts/Aller_Rg.ttf", 20)
 
     self.transition_timer = 0
 
@@ -85,9 +94,10 @@ function Game:update(dt)
             self.transition_stage = "move"
             self.transition_timer = self.transition_move_time
         elseif self.transition_stage == "move" then
-            self.transition_stage = fade_in
+            self.transition_stage = "fade_in"
             self.transition_timer = self.transition_fade_time
 
+            self.cons_name = self.next_cons_name
             self.stars = self.next_stars
             self.cons_lines = self.next_cons_lines
         elseif self.transition_stage == "fade_in" then
@@ -105,6 +115,10 @@ function Game:render()
         local fade_color = copy(self.cons_line_color)
         fade_color[4] = math.floor(fade_color[4] * (self.transition_timer / self.transition_fade_time))
         self:draw_cons_lines(self.cons_lines, fade_color)
+
+        fade_color = copy(self.cons_name_color)
+        fade_color[4] = math.floor(fade_color[4] * (self.transition_timer / self.transition_fade_time))
+        self:draw_cons_name(self.cons_name, fade_color)
     elseif self.transition_stage == "move" then
         local ratio = -0.5 * (math.cos(math.pi * self.transition_timer / self.transition_move_time) - 1)
         local translate = vec2(0, (1 - ratio) * self.screen_size[2])
@@ -123,9 +137,14 @@ function Game:render()
         local fade_color = copy(self.cons_line_color)
         fade_color[4] = math.floor(fade_color[4] * (1 - self.transition_timer / self.transition_fade_time))
         self:draw_cons_lines(self.cons_lines, fade_color)
+
+        fade_color = copy(self.cons_name_color)
+        fade_color[4] = math.floor(fade_color[4] * (1 - self.transition_timer / self.transition_fade_time))
+        self:draw_cons_name(self.cons_name, fade_color)
     else
         self:draw_stars(self.stars)
         self:draw_cons_lines(self.cons_lines, self.cons_line_color)
+        self:draw_cons_name(self.cons_name, self.cons_name_color)
     end
 
     love.graphics.setColor(255, 255, 255, 255)
@@ -157,6 +176,12 @@ function Game:key_released(key)
 
 end
 
+function Game:draw_cons_name(name, color)
+    love.graphics.setFont(self.cons_name_font)
+    love.graphics.setColor(color)
+    love.graphics.printf(name, 0, 10, 400, "center")
+end
+
 function Game:draw_stars(stars, tf)
     for _, star in ipairs(stars) do
         love.graphics.setColor(unpack(star.color))
@@ -179,9 +204,11 @@ end
 
 function Game:new_sky(with_transition)
     if not with_transition then
+        self.cons_name = self.name_gen:generate_name()
         self.stars = self:create_stars()
         self.cons_lines = self:create_cons(self.stars)
     elseif self.transition_stage == nil then
+        self.next_cons_name = self.name_gen:generate_name()
         self.next_stars = self:create_stars()
         self.next_cons_lines = self:create_cons(self.next_stars)
 
