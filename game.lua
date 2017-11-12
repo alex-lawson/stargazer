@@ -3,7 +3,8 @@ Game = class()
 function Game:init()
     math.randomseed(os.time())
 
-    self.screen_center = vec2(200, 150)
+    self.screen_size = vec2(400, 300)
+    self.screen_center = (self.screen_size * 0.5):floor()
     MainCamera:set_center(self.screen_center)
     MainCamera:set_scale(2)
 
@@ -26,7 +27,7 @@ function Game:init()
             color = {255, 255, 255, 160}
         },
         {
-            count = 150,
+            count = 200,
             offset = vec2(),
             place_rect = rect(2, 2, 395, 298),
             image = love.graphics.newImage("images/star1.png"),
@@ -69,25 +70,62 @@ function Game:init()
 
     self.cons_place_shift = {40, 20}
 
+    self.transition_fade_time = 0.25
+    self.transition_move_time = 3
+
+    self.transition_timer = 0
+
     self:new_sky()
 end
 
 function Game:update(dt)
+    self.transition_timer = math.max(0, self.transition_timer - dt)
+    if self.transition_timer == 0 and self.transition_stage then
+        if self.transition_stage == "fade_out" then
+            self.transition_stage = "move"
+            self.transition_timer = self.transition_move_time
+        elseif self.transition_stage == "move" then
+            self.transition_stage = fade_in
+            self.transition_timer = self.transition_fade_time
 
+            self.stars = self.next_stars
+            self.cons_lines = self.next_cons_lines
+        elseif self.transition_stage == "fade_in" then
+            self.transition_stage = nil
+        end
+    end
 end
 
 function Game:render()
     love.graphics.draw(self.sky_image, 0, 0)
 
-    for _, star in ipairs(self.stars) do
-        love.graphics.setColor(unpack(star.color))
-        love.graphics.draw(star.image, unpack(star.draw_position))
-    end
+    if self.transition_stage == "fade_out" then
+        self:draw_stars(self.stars)
 
-    love.graphics.setColor(unpack(self.cons_line_color))
-    love.graphics.setLineWidth(self.cons_line_width)
-    for _, line in ipairs(self.cons_lines) do
-        love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
+        local fade_color = copy(self.cons_line_color)
+        fade_color[4] = math.floor(fade_color[4] * (self.transition_timer / self.transition_fade_time))
+        self:draw_cons_lines(self.cons_lines, fade_color)
+    elseif self.transition_stage == "move" then
+        local ratio = -0.5 * (math.cos(math.pi * self.transition_timer / self.transition_move_time) - 1)
+        local translate = vec2(0, (1 - ratio) * self.screen_size[2])
+        local tf = function(p)
+            return p + translate
+        end
+
+        self:draw_stars(self.stars, tf)
+
+        translate = vec2(0, ratio * -self.screen_size[2])
+
+        self:draw_stars(self.next_stars, tf)
+    elseif self.transition_stage == "fade_in" then
+        self:draw_stars(self.stars)
+
+        local fade_color = copy(self.cons_line_color)
+        fade_color[4] = math.floor(fade_color[4] * (1 - self.transition_timer / self.transition_fade_time))
+        self:draw_cons_lines(self.cons_lines, fade_color)
+    else
+        self:draw_stars(self.stars)
+        self:draw_cons_lines(self.cons_lines, self.cons_line_color)
     end
 
     love.graphics.setColor(255, 255, 255, 255)
@@ -97,7 +135,7 @@ end
 
 function Game:mouse_pressed(pos, button)
     if button == 1 then
-        self:new_sky()
+        self:new_sky(true)
     end
 end
 
@@ -111,7 +149,7 @@ end
 
 function Game:key_pressed(key)
     if key == "space" then
-        self:new_sky()
+        self:new_sky(true)
     end
 end
 
@@ -119,33 +157,45 @@ function Game:key_released(key)
 
 end
 
-function Game:new_sky()
-    self:create_stars()
-    self:create_cons()
+function Game:draw_stars(stars, tf)
+    for _, star in ipairs(stars) do
+        love.graphics.setColor(unpack(star.color))
+        local pos = tf and tf(star.draw_position) or star.draw_position
+        love.graphics.draw(star.image, unpack(pos))
+    end
+end
+
+function Game:draw_cons_lines(lines, color, tf)
+    love.graphics.setColor(unpack(color))
+    love.graphics.setLineWidth(self.cons_line_width)
+    for _, line in ipairs(self.cons_lines) do
+        if tf then
+            love.graphics.line(tf(line[1][1]), tf(line[1][2]), tf(line[2][1]), tf(line[2][2]))
+        else
+            love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
+        end
+    end
+end
+
+function Game:new_sky(with_transition)
+    if not with_transition then
+        self.stars = self:create_stars()
+        self.cons_lines = self:create_cons(self.stars)
+    elseif self.transition_stage == nil then
+        self.next_stars = self:create_stars()
+        self.next_cons_lines = self:create_cons(self.next_stars)
+
+        self.transition_stage = "fade_out"
+        self.transition_timer = self.transition_fade_time
+    end
 end
 
 function Game:create_stars()
-    self.stars = {}
-    self.connect_stars = {}
-
-    local clear_rects = {}
-
-    local function pos_valid(pos)
-        for _, cr in ipairs(clear_rects) do
-            if cr:contains(pos) then
-                return false
-            end
-        end
-
-        return true
-    end
+    local new_stars = {}
 
     for _, star_config in pairs(self.star_configs) do
         for i = 1, star_config.count do
-            local star_pos
-            while not star_pos or not pos_valid(star_pos) do
-                star_pos = vec2(math.random(star_config.place_rect[1], star_config.place_rect[3]), math.random(star_config.place_rect[2], star_config.place_rect[4]))
-            end
+            local star_pos = vec2(math.random(star_config.place_rect[1], star_config.place_rect[3]), math.random(star_config.place_rect[2], star_config.place_rect[4]))
 
             local star = {
                 image = star_config.image,
@@ -154,24 +204,15 @@ function Game:create_stars()
                 draw_position = star_pos + star_config.offset
             }
 
-            table.insert(self.stars, star)
-
-            if star_config.connect then
-                table.insert(self.connect_stars, star)
-            end
-
-            if star_config.clear_rect then
-                table.insert(clear_rects, star_config.clear_rect:translate(star_pos))
-            end
+            table.insert(new_stars, star)
         end
     end
 
-    table.sort(self.connect_stars, function(a, b) return (a.position - self.screen_center):mag2() < (b.position - self.screen_center):mag2() end)
+    return new_stars
 end
 
-function Game:create_cons()
-    self.cons_lines = {}
-
+function Game:create_cons(stars)
+    local new_cons_lines = {}
     local cons_stars = {}
 
     local function pos_valid(pos)
@@ -185,7 +226,7 @@ function Game:create_cons()
         end
 
         -- position not too close to an existing constellation line
-        for _, line in pairs(self.cons_lines) do
+        for _, line in pairs(new_cons_lines) do
             local d1 = perp_dist(pos, unpack(line))
             local d2 = par_seg_dist(pos, unpack(line))
             if d1 < self.cons_line_clearance[1] and d2 < self.cons_line_clearance[2] then
@@ -211,7 +252,7 @@ function Game:create_cons()
         end
 
         -- line doesn't cross an existing constellation line
-        for _, line in pairs(self.cons_lines) do
+        for _, line in pairs(new_cons_lines) do
             if lines_intersect(line[1], line[2], from_star.position, to_star.position) then
                 -- printf("conn check failed: lines intersect")
                 return false
@@ -237,7 +278,7 @@ function Game:create_cons()
     local first_star_pos = vec2(math.random(self.cons_rect[1], self.cons_rect[3]), math.random(self.cons_rect[2], self.cons_rect[4]))
     local cur_star = make_cons_star(first_star_pos)
     table.insert(cons_stars, cur_star)
-    table.insert(self.stars, cur_star)
+    table.insert(stars, cur_star)
 
     while #cons_stars < target_stars and fails < self.cons_max_fails do
         local chain_tries = 0
@@ -261,10 +302,10 @@ function Game:create_cons()
 
         if new_star then
             table.insert(cons_stars, new_star)
-            table.insert(self.stars, new_star)
+            table.insert(stars, new_star)
 
             local padding = (new_star.position - cur_star.position):norm() * self.cons_star_padding
-            table.insert(self.cons_lines, {cur_star.position + padding, new_star.position - padding})
+            table.insert(new_cons_lines, {cur_star.position + padding, new_star.position - padding})
 
             if math.random() < self.cons_loop_chance then
                 local loop_star
@@ -281,7 +322,7 @@ function Game:create_cons()
 
                 if loop_star then
                     local padding = (loop_star.position - new_star.position):norm() * self.cons_star_padding
-                    table.insert(self.cons_lines, {new_star.position + padding, loop_star.position - padding})
+                    table.insert(new_cons_lines, {new_star.position + padding, loop_star.position - padding})
                 end
             end
 
@@ -313,10 +354,12 @@ function Game:create_cons()
         star.position = star.position + translate
         star.draw_position = star.draw_position + translate
     end
-    for _, line in pairs(self.cons_lines) do
+    for _, line in pairs(new_cons_lines) do
         line[1] = line[1] + translate
         line[2] = line[2] + translate
     end
 
-    -- printf("cons has %s lines %s stars with %s fails", #self.cons_lines, #cons_stars, fails)
+    return new_cons_lines
+
+    -- printf("cons has %s lines %s stars with %s fails", #new_cons_lines, #cons_stars, fails)
 end
