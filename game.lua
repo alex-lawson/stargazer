@@ -37,14 +37,14 @@ function Game:init()
     self.cons_star_configs = {
         {
             count = 5,
-            offset = vec2(-3, -3),
+            offset = vec2(-3.5, -3.5),
             place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star5.png"),
             color = {255, 255, 255, 220}
         },
         {
             count = 10,
-            offset = vec2(-2, -2),
+            offset = vec2(-2.5, -2.5),
             place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star4.png"),
             color = {255, 255, 255, 220}
@@ -53,14 +53,14 @@ function Game:init()
 
     self.cons_line_color = {255, 255, 255, 220}
     self.cons_line_width = 0.5
-    self.cons_star_padding = 4
+    self.cons_star_padding = 5
 
-    self.cons_star_count = {6, 12}
+    self.cons_star_count = {7, 12}
     self.cons_star_dist = {30, 80}
     self.cons_star_clearance = 25
     self.cons_line_clearance = {20, 5}
     self.cons_rect = rect(50, 40, 300, 190)
-    self.cons_loop_chance = 0.3
+    self.cons_loop_chance = 0.25
     self.cons_loop_tries = 5
     self.cons_branch_chance = 0.3
 
@@ -69,8 +69,7 @@ function Game:init()
 
     self.cons_place_shift = {40, 20}
 
-    self:create_stars()
-    self:create_cons()
+    self:new_sky()
 end
 
 function Game:update(dt)
@@ -98,11 +97,7 @@ end
 
 function Game:mouse_pressed(pos, button)
     if button == 1 then
-        -- print(par_seg_dist(pos, vec2(50, 250), vec2(350, 50)))
-
-
-        self:create_stars()
-        self:create_cons()
+        self:new_sky()
     end
 end
 
@@ -115,11 +110,18 @@ function Game:mouse_wheel_moved(x, y)
 end
 
 function Game:key_pressed(key)
-
+    if key == "space" then
+        self:new_sky()
+    end
 end
 
 function Game:key_released(key)
 
+end
+
+function Game:new_sky()
+    self:create_stars()
+    self:create_cons()
 end
 
 function Game:create_stars()
