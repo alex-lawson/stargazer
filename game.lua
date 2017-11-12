@@ -3,7 +3,8 @@ Game = class()
 function Game:init()
     math.randomseed(os.time())
 
-    MainCamera:set_center(vec2(200, 150))
+    self.screen_center = vec2(200, 150)
+    MainCamera:set_center(self.screen_center)
     MainCamera:set_scale(2)
 
     self.sky_image = love.graphics.newImage("images/sky.png")
@@ -57,7 +58,15 @@ function Game:init()
         }
     }
 
+    self.cons_line_count = {5, 7}
+    self.cons_fail_count = 100
+    self.cons_line_color = {255, 255, 255, 220}
+    self.cons_line_width = 0.5
+    self.cons_star_padding = 4
+    self.cons_rect = rect(50, 10, 300, 190)
+
     self:create_stars()
+    self:create_cons()
 end
 
 function Game:update(dt)
@@ -71,6 +80,13 @@ function Game:render()
         love.graphics.setColor(unpack(star.color))
         love.graphics.draw(star.image, unpack(star.draw_position))
     end
+
+    love.graphics.setColor(unpack(self.cons_line_color))
+    love.graphics.setLineWidth(self.cons_line_width)
+    for _, line in ipairs(self.cons_lines) do
+        love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
+    end
+
     love.graphics.setColor(255, 255, 255, 255)
 
     love.graphics.draw(self.building_image, 0, 0)
@@ -79,6 +95,7 @@ end
 function Game:mouse_pressed(pos, button)
     if button == 1 then
         self:create_stars()
+        self:create_cons()
     end
 end
 
@@ -139,4 +156,48 @@ function Game:create_stars()
             end
         end
     end
+
+    table.sort(self.connect_stars, function(a, b) return (a.position - self.screen_center):mag2() < (b.position - self.screen_center):mag2() end)
+end
+
+function Game:create_cons()
+    self.cons_lines = {}
+
+    local used_stars = {}
+
+    local tar_line_count = math.random(self.cons_line_count[1], self.cons_line_count[2])
+    local fails = 0
+
+    local function try_line(cand_line)
+        for _, line in pairs(self.cons_lines) do
+            if lines_intersect(cand_line[1], cand_line[2], line[1], line[2]) then
+                fails = fails + 1
+                return false
+            end
+        end
+        return true
+    end
+
+    local from_star = self.connect_stars[1]
+
+    while #self.cons_lines < tar_line_count and fails < self.cons_fail_count do
+        local to_star
+        while not to_star or to_star == from_star or not self.cons_rect:contains(to_star.position) do
+            to_star = self.connect_stars[math.random(1, #self.connect_stars)]
+        end
+
+        local star_diff = to_star.position - from_star.position
+        local pad_vec = star_diff:norm() * self.cons_star_padding
+        local cand_line = {from_star.position + pad_vec, to_star.position - pad_vec}
+
+        if try_line(cand_line) then
+            table.insert(self.cons_lines, cand_line)
+            table.insert(used_stars, to_star)
+            from_star = to_star
+        else
+            from_star = used_stars[math.random(1, #used_stars)]
+        end
+    end
+
+    -- printf("cons has %s lines with %s fails", #self.cons_lines, fails)
 end
