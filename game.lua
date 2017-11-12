@@ -82,6 +82,8 @@ function Game:init()
 
     self.cons_name_font = love.graphics.newFont("fonts/Aller_Rg.ttf", 20)
 
+    self.star_fade_y_range = {220, 295}
+
     self.transition_timer = 0
 
     self:new_sky()
@@ -184,8 +186,9 @@ end
 
 function Game:draw_stars(stars, tf)
     for _, star in ipairs(stars) do
-        love.graphics.setColor(unpack(star.color))
         local pos = tf and tf(star.draw_position) or star.draw_position
+        local alpha = math.floor(star.color[4] * math.max(0, math.min(1, 1 - (pos[2] - self.star_fade_y_range[1]) / (self.star_fade_y_range[2] - self.star_fade_y_range[1]))))
+        love.graphics.setColor(star.color[1], star.color[2], star.color[3], alpha)
         love.graphics.draw(star.image, unpack(pos))
     end
 end
