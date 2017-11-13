@@ -15,6 +15,8 @@ function Game:init()
 
     self.sky_bg_image = love.graphics.newImage("images/sky_bg.png")
     self.sky_bg_image:setWrap("repeat","repeat")
+    self.sky_fg_image = love.graphics.newImage("images/sky_fg.png")
+    self.sky_fg_image:setWrap("repeat","repeat")
     self.sky_bg_quad = love.graphics.newQuad(0, 0, self.screen_size[1], self.screen_size[2], self.sky_bg_image:getDimensions())
     self.building_image = love.graphics.newImage("images/buildings.png")
 
@@ -81,8 +83,6 @@ function Game:init()
 
     self.transition_fade_time = 0.25
     self.transition_move_time = 3
-
-    self.star_fade_y_range = {220, 295}
 
     self.transition_timer = 0
 
@@ -154,6 +154,7 @@ function Game:render()
 
     love.graphics.setColor(255, 255, 255, 255)
 
+    love.graphics.draw(self.sky_fg_image, self.sky_bg_quad, 0, 0)
     love.graphics.draw(self.building_image, 0, 0)
 end
 
@@ -190,8 +191,7 @@ end
 function Game:draw_stars(stars, tf)
     for _, star in ipairs(stars) do
         local pos = tf and tf(star.draw_position) or star.draw_position
-        local alpha = math.floor(star.color[4] * math.max(0, math.min(1, 1 - (pos[2] - self.star_fade_y_range[1]) / (self.star_fade_y_range[2] - self.star_fade_y_range[1]))))
-        love.graphics.setColor(star.color[1], star.color[2], star.color[3], alpha)
+        love.graphics.setColor(unpack(star.color))
         love.graphics.draw(star.image, unpack(pos))
     end
 end
