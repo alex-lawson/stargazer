@@ -110,46 +110,29 @@ function Game:render()
     love.graphics.draw(self.sky_bg_image, self.sky_bg_quad, 0, 0)
 
     if self.transition_stage == "fade_out" then
-        self:draw_stars(self.sky.stars)
-        self:draw_stars(self.sky.cons_stars)
+        love.graphics.draw(self.sky.star_canvas)
 
-        local fade_color = copy(self.cons_line_color)
-        fade_color[4] = math.floor(fade_color[4] * (self.transition_timer / self.transition_fade_time))
-        self:draw_cons_lines(self.sky.cons_lines, fade_color)
-
-        fade_color = copy(self.cons_name_color)
-        fade_color[4] = math.floor(fade_color[4] * (self.transition_timer / self.transition_fade_time))
-        self:draw_cons_name(self.sky.cons_name, fade_color)
+        local fade_alpha = self.transition_timer / self.transition_fade_time
+        self:draw_cons_lines(self.sky.cons_lines, fade_alpha)
+        self:draw_cons_name(self.sky.cons_name, fade_alpha)
     elseif self.transition_stage == "move" then
         local ratio = -0.5 * (math.cos(math.pi * self.transition_timer / self.transition_move_time) - 1)
+
         local translate = vec2(0, (1 - ratio) * self.screen_size[2])
-        local tf = function(p)
-            return p + translate
-        end
-
-        self:draw_stars(self.sky.stars, tf)
-        self:draw_stars(self.sky.cons_stars, tf)
-
+        love.graphics.draw(self.sky.star_canvas, unpack(translate))
         translate = vec2(0, ratio * -self.screen_size[2])
-
-        self:draw_stars(self.next_sky.stars, tf)
-        self:draw_stars(self.next_sky.cons_stars, tf)
+        love.graphics.draw(self.next_sky.star_canvas, unpack(translate))
     elseif self.transition_stage == "fade_in" then
-        self:draw_stars(self.sky.stars)
-        self:draw_stars(self.sky.cons_stars)
+        love.graphics.draw(self.sky.star_canvas)
 
-        local fade_color = copy(self.cons_line_color)
-        fade_color[4] = math.floor(fade_color[4] * (1 - self.transition_timer / self.transition_fade_time))
-        self:draw_cons_lines(self.sky.cons_lines, fade_color)
-
-        fade_color = copy(self.cons_name_color)
-        fade_color[4] = math.floor(fade_color[4] * (1 - self.transition_timer / self.transition_fade_time))
-        self:draw_cons_name(self.sky.cons_name, fade_color)
+        local fade_alpha = 1 - self.transition_timer / self.transition_fade_time
+        self:draw_cons_lines(self.sky.cons_lines, fade_alpha)
+        self:draw_cons_name(self.sky.cons_name, fade_alpha)
     else
-        self:draw_stars(self.sky.stars)
-        self:draw_stars(self.sky.cons_stars)
-        self:draw_cons_lines(self.sky.cons_lines, self.cons_line_color)
-        self:draw_cons_name(self.sky.cons_name, self.cons_name_color)
+        love.graphics.draw(self.sky.star_canvas)
+
+        self:draw_cons_lines(self.sky.cons_lines)
+        self:draw_cons_name(self.sky.cons_name)
     end
 
     love.graphics.setColor(255, 255, 255, 255)
@@ -182,29 +165,34 @@ function Game:key_released(key)
 
 end
 
-function Game:draw_cons_name(name, color)
+function Game:draw_cons_name(name, alpha)
+    love.graphics.setColor(
+            self.cons_name_color[1],
+            self.cons_name_color[2],
+            self.cons_name_color[3],
+            math.floor(self.cons_name_color[4] * (alpha or 1.0)))
+
     love.graphics.setFont(self.cons_name_font)
-    love.graphics.setColor(color)
     love.graphics.printf(name, 0, 10, 400, "center")
 end
 
-function Game:draw_stars(stars, tf)
+function Game:draw_stars(stars)
     for _, star in ipairs(stars) do
-        local pos = tf and tf(star.draw_position) or star.draw_position
         love.graphics.setColor(unpack(star.color))
-        love.graphics.draw(star.image, unpack(pos))
+        love.graphics.draw(star.image, unpack(star.draw_position))
     end
 end
 
-function Game:draw_cons_lines(lines, color, tf)
-    love.graphics.setColor(unpack(color))
+function Game:draw_cons_lines(lines, alpha)
+    love.graphics.setColor(
+            self.cons_line_color[1],
+            self.cons_line_color[2],
+            self.cons_line_color[3],
+            math.floor(self.cons_line_color[4] * (alpha or 1.0)))
+
     love.graphics.setLineWidth(self.cons_line_width)
     for _, line in ipairs(self.sky.cons_lines) do
-        if tf then
-            love.graphics.line(tf(line[1][1]), tf(line[1][2]), tf(line[2][1]), tf(line[2][2]))
-        else
-            love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
-        end
+        love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
     end
 end
 
@@ -213,6 +201,13 @@ function Game:new_sky(with_transition)
     new_sky.cons_name = self.name_gen:generate_name()
     new_sky.stars = self:create_stars()
     new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
+
+    new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
+
+    love.graphics.setCanvas(new_sky.star_canvas)
+    self:draw_stars(new_sky.stars)
+    self:draw_stars(new_sky.cons_stars)
+    love.graphics.setCanvas()
 
     if with_transition then
         self.next_sky = new_sky
