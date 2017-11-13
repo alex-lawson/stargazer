@@ -81,15 +81,14 @@ function Game:init()
     self.cons_place_shift = {20, 10}
 
     self.transition_fade_time = 0.5
-    self.transition_stretch_time = 1
     self.transition_move_time = 3
 
     self.transition_timer = 0
 
     self:new_sky()
 
-    self.transition_stage = "stretch_in"
-    self.transition_timer = math.max(self.transition_stretch_time, self.transition_fade_time)
+    self.transition_stage = "fade_in"
+    self.transition_timer = self.transition_fade_time
 end
 
 function Game:update(dt)
@@ -99,11 +98,11 @@ function Game:update(dt)
             self.transition_stage = "move"
             self.transition_timer = self.transition_move_time
         elseif self.transition_stage == "move" then
-            self.transition_stage = "stretch_in"
-            self.transition_timer = math.max(self.transition_stretch_time, self.transition_fade_time)
+            self.transition_stage = "fade_in"
+            self.transition_timer = self.transition_fade_time
 
             self.sky = self.next_sky
-        elseif self.transition_stage == "stretch_in" then
+        elseif self.transition_stage == "fade_in" then
             self.transition_stage = nil
         end
     end
@@ -125,13 +124,11 @@ function Game:render()
         love.graphics.draw(self.sky.star_canvas, unpack(translate))
         translate = vec2(0, ratio * -self.screen_size[2])
         love.graphics.draw(self.next_sky.star_canvas, unpack(translate))
-    elseif self.transition_stage == "stretch_in" then
+    elseif self.transition_stage == "fade_in" then
         love.graphics.draw(self.sky.star_canvas)
 
-        local fade_ratio = 1 - math.min(1.0, self.transition_timer / self.transition_fade_time)
-        local stretch_ratio = 1 - math.min(1.0, self.transition_timer / self.transition_stretch_time)
-
-        self:stretch_in_cons_lines(self.sky.cons_lines, stretch_ratio)
+        local fade_ratio = 1 - self.transition_timer / self.transition_fade_time
+        self:draw_cons_lines(self.sky.cons_lines, fade_ratio)
         self:draw_cons_name(self.sky.cons_name, fade_ratio)
     else
         love.graphics.draw(self.sky.star_canvas)
@@ -201,21 +198,21 @@ function Game:draw_cons_lines(lines, alpha)
     end
 end
 
-function Game:stretch_in_cons_lines(lines, overall_ratio)
-    love.graphics.setLineWidth(self.cons_line_width)
-    love.graphics.setColor(unpack(self.cons_line_color))
+-- function Game:stretch_in_cons_lines(lines, overall_ratio)
+--     love.graphics.setLineWidth(self.cons_line_width)
+--     love.graphics.setColor(unpack(self.cons_line_color))
 
-    local cur_stretch_index = math.floor(#lines * overall_ratio) + 1
-    for i, line in ipairs(self.sky.cons_lines) do
-        if i < cur_stretch_index then
-            love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
-        elseif i == cur_stretch_index then
-            local stretch_ratio = clamp(#lines * overall_ratio - cur_stretch_index + 1, 0, 1)
-            local end_point = lerp_vec2(stretch_ratio, line[1], line[2])
-            love.graphics.line(line[1][1], line[1][2], end_point[1], end_point[2])
-        end
-    end
-end
+--     local cur_stretch_index = math.floor(#lines * overall_ratio) + 1
+--     for i, line in ipairs(self.sky.cons_lines) do
+--         if i < cur_stretch_index then
+--             love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
+--         elseif i == cur_stretch_index then
+--             local stretch_ratio = clamp(#lines * overall_ratio - cur_stretch_index + 1, 0, 1)
+--             local end_point = lerp_vec2(stretch_ratio, line[1], line[2])
+--             love.graphics.line(line[1][1], line[1][2], end_point[1], end_point[2])
+--         end
+--     end
+-- end
 
 function Game:new_sky(with_transition)
     if not self.transition_stage then
