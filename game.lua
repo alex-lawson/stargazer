@@ -26,21 +26,21 @@ function Game:init()
             offset = vec2(-1, -1),
             place_rect = rect(5, 5, 395, 295),
             image = love.graphics.newImage("images/star3.png"),
-            color = {255, 255, 255, 180}
+            color = {255, 255, 255, 190}
         },
         {
             count = 20,
             offset = vec2(-1, -1),
             place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star2.png"),
-            color = {255, 255, 255, 160}
+            color = {255, 255, 255, 190}
         },
         {
             count = 200,
             offset = vec2(),
             place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star1.png"),
-            color = {255, 255, 255, 150}
+            color = {255, 255, 255, 190}
         }
     }
 
@@ -77,6 +77,8 @@ function Game:init()
     self.cons_branch_chance = 0.3
     self.cons_max_fails = 100
     self.cons_chain_tries = 5
+
+    self.cons_star_exclude_rect = rect(-4, -4, 5, 5)
 
     self.cons_place_shift = {20, 10}
 
@@ -216,18 +218,35 @@ end
 
 function Game:new_sky(with_transition)
     if not self.transition_stage then
+        -- generate new stars and constellation
         local new_sky = {}
         new_sky.cons_name = self.name_gen:generate_name()
         new_sky.stars = self:create_stars()
         new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
 
-        new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
+        -- remove stars too close to constellation stars
 
+        local exclude_rects = map(new_sky.cons_stars, function(star)
+                return self.cons_star_exclude_rect:translate(star.position)
+            end)
+
+        new_sky.stars = filter(new_sky.stars, function(star)
+                for _, rect in pairs(exclude_rects) do
+                    if rect:contains(star.position) then
+                        return false
+                    end
+                end
+                return true
+            end)
+
+        -- draw new stars to canvas for later rendering
+        new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
         love.graphics.setCanvas(new_sky.star_canvas)
         self:draw_stars(new_sky.stars)
         self:draw_stars(new_sky.cons_stars)
         love.graphics.setCanvas()
 
+        -- set new sky or start transition
         if with_transition then
             self.next_sky = new_sky
             self.transition_stage = "fade_out"
