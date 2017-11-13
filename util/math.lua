@@ -105,3 +105,7 @@ function par_seg_dist(p, a, b)
         return 0
     end
 end
+
+function ease_sin(ratio)
+    return -0.5 * (math.cos(math.pi * ratio) - 1)
+end

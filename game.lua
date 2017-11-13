@@ -24,21 +24,21 @@ function Game:init()
         {
             count = 20,
             offset = vec2(-1, -1),
-            place_rect = rect(10, 5, 390, 295),
+            place_rect = rect(5, 5, 395, 295),
             image = love.graphics.newImage("images/star3.png"),
             color = {255, 255, 255, 180}
         },
         {
             count = 20,
             offset = vec2(-1, -1),
-            place_rect = rect(2, 2, 395, 298),
+            place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star2.png"),
             color = {255, 255, 255, 160}
         },
         {
             count = 200,
             offset = vec2(),
-            place_rect = rect(2, 2, 395, 298),
+            place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star1.png"),
             color = {255, 255, 255, 150}
         }
@@ -48,27 +48,26 @@ function Game:init()
         {
             count = 5,
             offset = vec2(-3.5, -3.5),
-            place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star5.png"),
             color = {255, 255, 255, 220}
         },
         {
             count = 10,
             offset = vec2(-2.5, -2.5),
-            place_rect = rect(50, 10, 350, 250),
             image = love.graphics.newImage("images/star4.png"),
             color = {255, 255, 255, 220}
         }
     }
 
     self.cons_name_color = {255, 255, 255, 255}
-    self.cons_name_font = love.graphics.newFont("fonts/Aller_Rg.ttf", 20)
+    self.cons_name_font = love.graphics.newFont("fonts/Aller_rg.ttf", 18)
+    self.cons_name_font:setFilter("nearest", "nearest")
 
     self.cons_line_color = {230, 230, 255, 220}
     self.cons_line_width = 0.5
     self.cons_star_padding = 5
 
-    self.cons_star_count = {7, 12}
+    self.cons_star_count = {6, 12}
     self.cons_star_dist = {30, 80}
     self.cons_star_clearance = 25
     self.cons_line_clearance = {20, 5}
@@ -81,12 +80,16 @@ function Game:init()
 
     self.cons_place_shift = {20, 10}
 
-    self.transition_fade_time = 0.25
+    self.transition_fade_time = 0.5
+    self.transition_stretch_time = 1
     self.transition_move_time = 3
 
     self.transition_timer = 0
 
     self:new_sky()
+
+    self.transition_stage = "stretch_in"
+    self.transition_timer = math.max(self.transition_stretch_time, self.transition_fade_time)
 end
 
 function Game:update(dt)
@@ -96,11 +99,11 @@ function Game:update(dt)
             self.transition_stage = "move"
             self.transition_timer = self.transition_move_time
         elseif self.transition_stage == "move" then
-            self.transition_stage = "fade_in"
-            self.transition_timer = self.transition_fade_time
+            self.transition_stage = "stretch_in"
+            self.transition_timer = math.max(self.transition_stretch_time, self.transition_fade_time)
 
             self.sky = self.next_sky
-        elseif self.transition_stage == "fade_in" then
+        elseif self.transition_stage == "stretch_in" then
             self.transition_stage = nil
         end
     end
@@ -112,22 +115,24 @@ function Game:render()
     if self.transition_stage == "fade_out" then
         love.graphics.draw(self.sky.star_canvas)
 
-        local fade_alpha = self.transition_timer / self.transition_fade_time
-        self:draw_cons_lines(self.sky.cons_lines, fade_alpha)
-        self:draw_cons_name(self.sky.cons_name, fade_alpha)
+        local fade_ratio = self.transition_timer / self.transition_fade_time
+        self:draw_cons_lines(self.sky.cons_lines, fade_ratio)
+        self:draw_cons_name(self.sky.cons_name, fade_ratio)
     elseif self.transition_stage == "move" then
-        local ratio = -0.5 * (math.cos(math.pi * self.transition_timer / self.transition_move_time) - 1)
+        local ratio = ease_sin(self.transition_timer / self.transition_move_time)
 
         local translate = vec2(0, (1 - ratio) * self.screen_size[2])
         love.graphics.draw(self.sky.star_canvas, unpack(translate))
         translate = vec2(0, ratio * -self.screen_size[2])
         love.graphics.draw(self.next_sky.star_canvas, unpack(translate))
-    elseif self.transition_stage == "fade_in" then
+    elseif self.transition_stage == "stretch_in" then
         love.graphics.draw(self.sky.star_canvas)
 
-        local fade_alpha = 1 - self.transition_timer / self.transition_fade_time
-        self:draw_cons_lines(self.sky.cons_lines, fade_alpha)
-        self:draw_cons_name(self.sky.cons_name, fade_alpha)
+        local fade_ratio = 1 - math.min(1.0, self.transition_timer / self.transition_fade_time)
+        local stretch_ratio = 1 - math.min(1.0, self.transition_timer / self.transition_stretch_time)
+
+        self:stretch_in_cons_lines(self.sky.cons_lines, stretch_ratio)
+        self:draw_cons_name(self.sky.cons_name, fade_ratio)
     else
         love.graphics.draw(self.sky.star_canvas)
 
@@ -196,25 +201,43 @@ function Game:draw_cons_lines(lines, alpha)
     end
 end
 
+function Game:stretch_in_cons_lines(lines, overall_ratio)
+    love.graphics.setLineWidth(self.cons_line_width)
+    love.graphics.setColor(unpack(self.cons_line_color))
+
+    local cur_stretch_index = math.floor(#lines * overall_ratio) + 1
+    for i, line in ipairs(self.sky.cons_lines) do
+        if i < cur_stretch_index then
+            love.graphics.line(line[1][1], line[1][2], line[2][1], line[2][2])
+        elseif i == cur_stretch_index then
+            local stretch_ratio = clamp(#lines * overall_ratio - cur_stretch_index + 1, 0, 1)
+            local end_point = lerp_vec2(stretch_ratio, line[1], line[2])
+            love.graphics.line(line[1][1], line[1][2], end_point[1], end_point[2])
+        end
+    end
+end
+
 function Game:new_sky(with_transition)
-    local new_sky = {}
-    new_sky.cons_name = self.name_gen:generate_name()
-    new_sky.stars = self:create_stars()
-    new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
+    if not self.transition_stage then
+        local new_sky = {}
+        new_sky.cons_name = self.name_gen:generate_name()
+        new_sky.stars = self:create_stars()
+        new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
 
-    new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
+        new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
 
-    love.graphics.setCanvas(new_sky.star_canvas)
-    self:draw_stars(new_sky.stars)
-    self:draw_stars(new_sky.cons_stars)
-    love.graphics.setCanvas()
+        love.graphics.setCanvas(new_sky.star_canvas)
+        self:draw_stars(new_sky.stars)
+        self:draw_stars(new_sky.cons_stars)
+        love.graphics.setCanvas()
 
-    if with_transition then
-        self.next_sky = new_sky
-        self.transition_stage = "fade_out"
-        self.transition_timer = self.transition_fade_time
-    else
-        self.sky = new_sky
+        if with_transition then
+            self.next_sky = new_sky
+            self.transition_stage = "fade_out"
+            self.transition_timer = self.transition_fade_time
+        else
+            self.sky = new_sky
+        end
     end
 end
 
