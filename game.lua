@@ -13,7 +13,9 @@ function Game:init()
     MainCamera:set_center(self.screen_center)
     MainCamera:set_scale(2)
 
-    self.sky_image = love.graphics.newImage("images/sky.png")
+    self.sky_bg_image = love.graphics.newImage("images/sky_bg.png")
+    self.sky_bg_image:setWrap("repeat","repeat")
+    self.sky_bg_quad = love.graphics.newQuad(0, 0, self.screen_size[1], self.screen_size[2], self.sky_bg_image:getDimensions())
     self.building_image = love.graphics.newImage("images/buildings.png")
 
     self.star_configs = {
@@ -105,7 +107,7 @@ function Game:update(dt)
 end
 
 function Game:render()
-    love.graphics.draw(self.sky_image, 0, 0)
+    love.graphics.draw(self.sky_bg_image, self.sky_bg_quad, 0, 0)
 
     if self.transition_stage == "fade_out" then
         self:draw_stars(self.sky.stars)
