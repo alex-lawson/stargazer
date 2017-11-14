@@ -60,7 +60,7 @@ function Game:init()
     }
 
     self.cons_name_color = {255, 255, 255, 255}
-    self.cons_name_font = love.graphics.newFont("fonts/Aller_rg.ttf", 18)
+    self.cons_name_font = love.graphics.newFont("fonts/Aller_Rg.ttf", 18)
     self.cons_name_font:setFilter("nearest", "nearest")
     self.cons_name_pos = {self.screen_size[1] * 0.5, 10}
 
