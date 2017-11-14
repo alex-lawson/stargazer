@@ -62,6 +62,7 @@ function Game:init()
     self.cons_name_color = {255, 255, 255, 255}
     self.cons_name_font = love.graphics.newFont("fonts/Aller_rg.ttf", 18)
     self.cons_name_font:setFilter("nearest", "nearest")
+    self.cons_name_pos = {self.screen_size[1] * 0.5, 10}
 
     self.cons_line_color = {230, 230, 255, 220}
     self.cons_line_width = 0.5
@@ -118,7 +119,7 @@ function Game:render()
 
         local fade_ratio = self.transition_timer / self.transition_fade_time
         self:draw_cons_lines(self.sky.cons_lines, fade_ratio)
-        self:draw_cons_name(self.sky.cons_name, fade_ratio)
+        self:draw_cons_name(self.sky.cons_text, fade_ratio)
     elseif self.transition_stage == "move" then
         local ratio = ease_sin(self.transition_timer / self.transition_move_time)
 
@@ -131,12 +132,12 @@ function Game:render()
 
         local fade_ratio = 1 - self.transition_timer / self.transition_fade_time
         self:draw_cons_lines(self.sky.cons_lines, fade_ratio)
-        self:draw_cons_name(self.sky.cons_name, fade_ratio)
+        self:draw_cons_name(self.sky.cons_text, fade_ratio)
     else
         love.graphics.draw(self.sky.star_canvas)
 
         self:draw_cons_lines(self.sky.cons_lines)
-        self:draw_cons_name(self.sky.cons_name)
+        self:draw_cons_name(self.sky.cons_text)
     end
 
     love.graphics.setColor(255, 255, 255, 255)
@@ -169,15 +170,17 @@ function Game:key_released(key)
 
 end
 
-function Game:draw_cons_name(name, alpha)
+function Game:draw_cons_name(text, alpha)
     love.graphics.setColor(
             self.cons_name_color[1],
             self.cons_name_color[2],
             self.cons_name_color[3],
             math.floor(self.cons_name_color[4] * (alpha or 1.0)))
 
-    love.graphics.setFont(self.cons_name_font)
-    love.graphics.printf(name, 0, 10, 400, "center")
+    -- love.graphics.setFont(self.cons_name_font)
+    -- love.graphics.printf(name, 0, 10, 400, "center")
+    local draw_x = math.floor(self.cons_name_pos[1] - text:getWidth() * 0.5)
+    love.graphics.draw(text, draw_x, self.cons_name_pos[2])
 end
 
 function Game:draw_stars(stars)
@@ -220,24 +223,23 @@ function Game:new_sky(with_transition)
     if not self.transition_stage then
         -- generate new stars and constellation
         local new_sky = {}
-        new_sky.cons_name = self.name_gen:generate_name()
-        new_sky.stars = self:create_stars()
-        new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
 
-        -- remove stars too close to constellation stars
+        new_sky.cons_stars, new_sky.cons_lines = self:create_cons()
 
         local exclude_rects = map(new_sky.cons_stars, function(star)
                 return self.cons_star_exclude_rect:translate(star.position)
             end)
 
-        new_sky.stars = filter(new_sky.stars, function(star)
-                for _, rect in pairs(exclude_rects) do
-                    if rect:contains(star.position) then
-                        return false
-                    end
-                end
-                return true
-            end)
+        new_sky.cons_name = self.name_gen:generate_name()
+        new_sky.cons_text = love.graphics.newText(self.cons_name_font, new_sky.cons_name)
+
+        local text_rect_ll = vec2(self.cons_name_pos[1] - new_sky.cons_text:getWidth() * 0.5, self.cons_name_pos[2])
+        local text_rect = rect(text_rect_ll[1], text_rect_ll[2], text_rect_ll[1] + new_sky.cons_text:getWidth(), text_rect_ll[2] + new_sky.cons_text:getHeight())
+        text_rect = text_rect:pad(vec2(3, 3))
+
+        table.insert(exclude_rects, text_rect)
+
+        new_sky.stars = self:create_stars(exclude_rects)
 
         -- draw new stars to canvas for later rendering
         new_sky.star_canvas = love.graphics.newCanvas(unpack(self.screen_size))
@@ -257,12 +259,24 @@ function Game:new_sky(with_transition)
     end
 end
 
-function Game:create_stars()
+function Game:create_stars(exclude_rects)
+    local function pos_valid(pos)
+        for _, rect in pairs(exclude_rects) do
+            if rect:contains(pos) then
+                return false
+            end
+        end
+        return true
+    end
+
     local new_stars = {}
 
     for _, star_config in pairs(self.star_configs) do
         for i = 1, star_config.count do
-            local star_pos = vec2(math.random(star_config.place_rect[1], star_config.place_rect[3]), math.random(star_config.place_rect[2], star_config.place_rect[4]))
+            local star_pos
+            while not star_pos or not pos_valid(star_pos) do
+                star_pos = vec2(math.random(star_config.place_rect[1], star_config.place_rect[3]), math.random(star_config.place_rect[2], star_config.place_rect[4]))
+            end
 
             local star = {
                 image = star_config.image,
