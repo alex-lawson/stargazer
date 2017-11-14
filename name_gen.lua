@@ -12,7 +12,7 @@ function NameGenerator:init(config)
     self.chains = {}
     self.starts = {}
     self.is_end = {}
-    for _, name in pairs(self.source_names) do
+    for _, name in ipairs(self.source_names) do
         name = name:lower()
         table.insert(self.starts, name:sub(1, self.order))
 
@@ -50,7 +50,7 @@ function NameGenerator:generate_name()
 
     name = name:sub(1, 1):upper() .. name:sub(2)
 
-    -- for _, source_name in pairs(self.source_names) do
+    -- for _, source_name in ipairs(self.source_names) do
     --     if name:lower() == source_name:lower() then
     --         printf("name '%s' is in source table", name)
     --     end
