@@ -50,6 +50,8 @@ function Game:update(dt)
 end
 
 function Game:render()
+    love.graphics.setColor(255, 255, 255, 255)
+
     love.graphics.draw(self.sky_bg_image, self.sky_bg_quad, 0, 0)
 
     if self.transition_stage == "fade_out" then
@@ -101,6 +103,10 @@ end
 function Game:key_pressed(key)
     if key == "space" then
         self:new_sky(true)
+    elseif key == "f12" and not self.transition_stage then
+        local screenshot = love.graphics.newScreenshot();
+        screenshot:encode('png', self.sky.cons_name .. '.png');
+        Log:message("Screenshot saved as %s", love.filesystem.getSaveDirectory() .. '/' .. self.sky.cons_name .. '.png')
     end
 end
 
@@ -149,15 +155,17 @@ end
 -- end
 
 function Game:new_sky(with_transition)
-    if with_transition then
-        self.next_sky:generate(self.name_gen)
+    if not self.transition_stage then
+        if with_transition then
+            self.next_sky:generate(self.name_gen)
 
-        self.transition_stage = "fade_out"
-        self.transition_timer = self.transition_fade_time
-    else
-        self.sky:generate(self.name_gen)
+            self.transition_stage = "fade_out"
+            self.transition_timer = self.transition_fade_time
+        else
+            self.sky:generate(self.name_gen)
 
-        self.transition_stage = "fade_in"
-        self.transition_timer = self.transition_fade_time
+            self.transition_stage = "fade_in"
+            self.transition_timer = self.transition_fade_time
+        end
     end
 end

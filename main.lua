@@ -7,6 +7,8 @@ require 'util/poly'
 require 'util/math'
 require 'util/camera'
 require 'util/animation'
+require 'util/fps_counter'
+require 'util/debug_log'
 
 require 'game'
 
@@ -16,10 +18,18 @@ function love.load()
     MainCamera = Camera()
 
     GameInstance = Game()
+
+    Log = DebugLog()
+
+    Fps = FpsCounter()
+    Fps.enabled = false
 end
 
 function love.update(dt)
     GameInstance:update(dt)
+
+    Log:update(dt)
+    Fps:update(dt)
 end
 
 function love.draw()
@@ -30,6 +40,9 @@ function love.draw()
     GameInstance:render()
 
     love.graphics.pop()
+
+    Log:render()
+    Fps:render()
 end
 
 function love.mousepressed(x, y, button)
@@ -45,6 +58,10 @@ function love.wheelmoved(x, y)
 end
 
 function love.keypressed(key)
+    if key == "f1" then
+        Fps.enabled = not Fps.enabled
+    end
+
     GameInstance:key_pressed(key)
 end
 
