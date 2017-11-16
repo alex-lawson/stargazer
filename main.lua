@@ -37,9 +37,11 @@ function love.draw()
 
     MainCamera:do_transform()
 
-    GameInstance:render()
+    GameInstance:render_world()
 
     love.graphics.pop()
+
+    GameInstance:render_overlay()
 
     Log:render()
     Fps:render()

@@ -1,7 +1,8 @@
 Sky = class()
 
-function Sky:init(screen_size)
+function Sky:init(screen_size, scale)
     self.screen_size = screen_size
+    self.scale = scale
 
     self.star_configs = {
         {
@@ -42,10 +43,22 @@ function Sky:init(screen_size)
         }
     }
 
-    self.cons_name_color = {255, 255, 255, 255}
-    self.cons_name_font = love.graphics.newFont(18)
+    self.title_font = love.graphics.newFont("fonts/alagard.ttf", 78)
+    self.subtitle_font = love.graphics.newFont("fonts/alagard.ttf", 36)
+    self.title_text = love.graphics.newText(self.title_font, "Stargazer")
+    self.subtitle_text = love.graphics.newText(self.subtitle_font, "press [space] to look up")
+    local scaled_screen = self.screen_size * self.scale
+    self.title_position = vec2(
+            (scaled_screen[1] - self.title_text:getWidth()) * 0.5,
+            scaled_screen[2] * 0.4 - self.title_text:getHeight() - 15):floor()
+    self.subtitle_position = vec2(
+            (scaled_screen[1] - self.subtitle_text:getWidth()) * 0.5,
+            scaled_screen[2] * 0.4 + 15):floor()
+
+    self.cons_name_color = {255, 255, 255, 230}
+    self.cons_name_font = love.graphics.newFont("fonts/alagard.ttf", 48)
     self.cons_name_font:setFilter("nearest", "nearest")
-    self.cons_name_pos = {self.screen_size[1] * 0.5, 10}
+    self.cons_name_pos = vec2(self.screen_size[1], 20)
 
     self.cons_line_color = {230, 230, 255, 220}
     self.cons_line_width = 0.5
@@ -82,12 +95,12 @@ function Sky:generate(name_gen)
         self.cons_name = name_gen:generate_name()
         self.cons_name_text:set(self.cons_name)
 
-        local text_rect_ll = vec2(self.cons_name_pos[1] - self.cons_name_text:getWidth() * 0.5, self.cons_name_pos[2])
+        local text_rect_ll = vec2(self.cons_name_pos[1] - self.cons_name_text:getWidth() * 0.5, self.cons_name_pos[2]) / self.scale
         local text_rect = rect(
                 text_rect_ll[1],
                 text_rect_ll[2],
-                text_rect_ll[1] + self.cons_name_text:getWidth(),
-                text_rect_ll[2] + self.cons_name_text:getHeight())
+                text_rect_ll[1] + self.cons_name_text:getWidth() / self.scale,
+                text_rect_ll[2] + self.cons_name_text:getHeight() / self.scale)
 
         text_rect = text_rect:pad(vec2(3, 3))
 
@@ -109,6 +122,33 @@ function Sky:generate(name_gen)
         draw_stars(self.cons_stars)
         love.graphics.setCanvas()
     end
+end
+
+function Sky:generate_title()
+    self.cons_stars = {}
+    self.cons_lines = {}
+    self.cons_name = ""
+    self.cons_name_text:set("")
+
+    local exclude_rects = {}
+
+    local title_rect = rect.with_size(self.title_position, vec2(self.title_text:getDimensions())):pad(vec2(4, 4))
+    title_rect = (title_rect / self.scale):floor()
+    local subtitle_rect = rect.with_size(self.subtitle_position, vec2(self.subtitle_text:getDimensions())):pad(vec2(4, 4))
+    subtitle_rect = (subtitle_rect / self.scale):floor()
+
+    table.insert(exclude_rects, title_rect)
+    table.insert(exclude_rects, subtitle_rect)
+
+    self.stars = self:create_stars(exclude_rects)
+
+    love.graphics.setCanvas(self.star_canvas)
+    love.graphics.clear()
+    for _, star in ipairs(self.stars) do
+        love.graphics.setColor(unpack(star.color))
+        love.graphics.draw(star.image, unpack(star.draw_position))
+    end
+    love.graphics.setCanvas()
 end
 
 function Sky:create_stars(exclude_rects)

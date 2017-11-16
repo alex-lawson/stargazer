@@ -11,8 +11,9 @@ function Game:init()
 
     self.screen_size = vec2(400, 300)
     self.screen_center = (self.screen_size * 0.5):floor()
+    self.scale = 2
     MainCamera:set_center(self.screen_center)
-    MainCamera:set_scale(2)
+    MainCamera:set_scale(self.scale)
 
     self.sky_bg_image = love.graphics.newImage("images/sky_bg.png")
     self.sky_bg_image:setWrap("repeat","repeat")
@@ -21,21 +22,25 @@ function Game:init()
     self.sky_bg_quad = love.graphics.newQuad(0, 0, self.screen_size[1], self.screen_size[2], self.sky_bg_image:getDimensions())
     self.building_image = love.graphics.newImage("images/buildings.png")
 
-    self.transition_fade_time = 0.5
+    self.transition_fade_time = 0.6
     self.transition_move_time = 3
 
     self.transition_timer = 0
 
-    self.sky = Sky(self.screen_size)
-    self.next_sky = Sky(self.screen_size)
+    self.sky = Sky(self.screen_size, self.scale)
+    self.next_sky = Sky(self.screen_size, self.scale)
 
-    self:new_sky()
+    self.sky:generate_title()
+    self.transition_timer = 0.8
+    self.transition_stage = "fade_in_title"
 end
 
 function Game:update(dt)
     self.transition_timer = math.max(0, self.transition_timer - dt)
     if self.transition_timer == 0 and self.transition_stage then
-        if self.transition_stage == "fade_out" then
+        if self.transition_stage == "fade_in_title" then
+            self.transition_stage = "title"
+        elseif self.transition_stage == "fade_out" or self.transition_stage == "fade_out_title" then
             self.transition_stage = "move"
             self.transition_timer = self.transition_move_time
         elseif self.transition_stage == "move" then
@@ -49,17 +54,21 @@ function Game:update(dt)
     end
 end
 
-function Game:render()
+function Game:render_world()
     love.graphics.setColor(255, 255, 255, 255)
 
     love.graphics.draw(self.sky_bg_image, self.sky_bg_quad, 0, 0)
 
-    if self.transition_stage == "fade_out" then
+    if self.transition_stage == "title"
+            or self.transition_stage == "fade_out_title"
+            or self.transition_stage == "fade_in_title" then
+
+        love.graphics.draw(self.sky.star_canvas)
+    elseif self.transition_stage == "fade_out" then
         love.graphics.draw(self.sky.star_canvas)
 
         local fade_ratio = self.transition_timer / self.transition_fade_time
         self:draw_cons_lines(self.sky, fade_ratio)
-        self:draw_cons_name(self.sky, fade_ratio)
     elseif self.transition_stage == "move" then
         local ratio = ease_sin(self.transition_timer / self.transition_move_time)
 
@@ -72,18 +81,36 @@ function Game:render()
 
         local fade_ratio = 1 - self.transition_timer / self.transition_fade_time
         self:draw_cons_lines(self.sky, fade_ratio)
-        self:draw_cons_name(self.sky, fade_ratio)
     else
         love.graphics.draw(self.sky.star_canvas)
 
         self:draw_cons_lines(self.sky)
-        self:draw_cons_name(self.sky)
     end
 
     love.graphics.setColor(255, 255, 255, 255)
 
     love.graphics.draw(self.sky_fg_image, self.sky_bg_quad, 0, 0)
     love.graphics.draw(self.building_image, 0, 0)
+end
+
+function Game:render_overlay()
+    if self.transition_stage == "fade_in_title" then
+        local fade_ratio = 1 - math.min(1.0, self.transition_timer / self.transition_fade_time)
+        self:draw_title(self.sky, fade_ratio)
+    elseif self.transition_stage == "title" then
+        self:draw_title(self.sky)
+    elseif self.transition_stage == "fade_out_title" then
+        local fade_ratio = self.transition_timer / self.transition_fade_time
+        self:draw_title(self.sky, fade_ratio)
+    elseif self.transition_stage == "fade_out" then
+        local fade_ratio = self.transition_timer / self.transition_fade_time
+        self:draw_cons_name(self.sky, fade_ratio)
+    elseif self.transition_stage == "fade_in" then
+        local fade_ratio = 1 - self.transition_timer / self.transition_fade_time
+        self:draw_cons_name(self.sky, fade_ratio)
+    elseif self.transition_stage == nil then
+        self:draw_cons_name(self.sky)
+    end
 end
 
 function Game:mouse_pressed(pos, button)
@@ -125,6 +152,17 @@ function Game:draw_cons_name(sky, alpha)
     love.graphics.draw(sky.cons_name_text, draw_x, sky.cons_name_pos[2])
 end
 
+function Game:draw_title(sky, alpha)
+    love.graphics.setColor(
+            sky.cons_name_color[1],
+            sky.cons_name_color[2],
+            sky.cons_name_color[3],
+            math.floor(sky.cons_name_color[4] * (alpha or 1.0)))
+
+    love.graphics.draw(sky.title_text, unpack(sky.title_position))
+    love.graphics.draw(sky.subtitle_text, unpack(sky.subtitle_position))
+end
+
 function Game:draw_cons_lines(sky, alpha)
     love.graphics.setColor(
             sky.cons_line_color[1],
@@ -155,11 +193,15 @@ end
 -- end
 
 function Game:new_sky(with_transition)
-    if not self.transition_stage then
+    if not self.transition_stage or self.transition_stage == "title" then
         if with_transition then
             self.next_sky:generate(self.name_gen)
 
-            self.transition_stage = "fade_out"
+            if self.transition_stage == "title" then
+                self.transition_stage = "fade_out_title"
+            else
+                self.transition_stage = "fade_out"
+            end
             self.transition_timer = self.transition_fade_time
         else
             self.sky:generate(self.name_gen)
