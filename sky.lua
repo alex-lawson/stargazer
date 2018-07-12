@@ -10,21 +10,21 @@ function Sky:init(screen_size, scale)
             offset = vec2(-1, -1),
             place_rect = rect(5, 5, 395, 295),
             image = love.graphics.newImage("images/star3.png"),
-            color = {255, 255, 255, 190}
+            color = {1.0, 1.0, 1.0, 0.75}
         },
         {
             count = 20,
             offset = vec2(-1, -1),
             place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star2.png"),
-            color = {255, 255, 255, 190}
+            color = {1.0, 1.0, 1.0, 0.75}
         },
         {
             count = 200,
             offset = vec2(),
             place_rect = rect(2, 2, 398, 298),
             image = love.graphics.newImage("images/star1.png"),
-            color = {255, 255, 255, 190}
+            color = {1.0, 1.0, 1.0, 0.75}
         }
     }
 
@@ -33,13 +33,13 @@ function Sky:init(screen_size, scale)
             count = 5,
             offset = vec2(-3.5, -3.5),
             image = love.graphics.newImage("images/star5.png"),
-            color = {255, 255, 255, 220}
+            color = {1.0, 1.0, 1.0, 0.86}
         },
         {
             count = 10,
             offset = vec2(-2.5, -2.5),
             image = love.graphics.newImage("images/star4.png"),
-            color = {255, 255, 255, 220}
+            color = {1.0, 1.0, 1.0, 0.86}
         }
     }
 
@@ -55,12 +55,12 @@ function Sky:init(screen_size, scale)
             (scaled_screen[1] - self.subtitle_text:getWidth()) * 0.5,
             scaled_screen[2] * 0.4 + 15):floor()
 
-    self.cons_name_color = {255, 255, 255, 230}
+    self.cons_name_color = {1.0, 1.0, 1.0, 0.9}
     self.cons_name_font = love.graphics.newFont("fonts/alagard.ttf", 48)
     self.cons_name_font:setFilter("nearest", "nearest")
     self.cons_name_pos = vec2(self.screen_size[1], 20)
 
-    self.cons_line_color = {230, 230, 255, 220}
+    self.cons_line_color = {0.9, 0.9, 1.0, 0.86}
     self.cons_line_width = 0.5
     self.cons_star_padding = 5
 
@@ -141,6 +141,23 @@ function Sky:generate_title()
     table.insert(exclude_rects, subtitle_rect)
 
     self.stars = self:create_stars(exclude_rects)
+
+    love.graphics.setCanvas(self.star_canvas)
+    love.graphics.clear()
+    for _, star in ipairs(self.stars) do
+        love.graphics.setColor(unpack(star.color))
+        love.graphics.draw(star.image, unpack(star.draw_position))
+    end
+    love.graphics.setCanvas()
+end
+
+function Sky:generate_stars_only()
+    self.cons_stars = {}
+    self.cons_lines = {}
+    self.cons_name = ""
+    self.cons_name_text:set("")
+
+    self.stars = self:create_stars({})
 
     love.graphics.setCanvas(self.star_canvas)
     love.graphics.clear()

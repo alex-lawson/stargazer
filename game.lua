@@ -55,7 +55,7 @@ function Game:update(dt)
 end
 
 function Game:render_world()
-    love.graphics.setColor(255, 255, 255, 255)
+    love.graphics.setColor(1, 1, 1, 1)
 
     love.graphics.draw(self.sky_bg_image, self.sky_bg_quad, 0, 0)
 
@@ -87,7 +87,7 @@ function Game:render_world()
         self:draw_cons_lines(self.sky)
     end
 
-    love.graphics.setColor(255, 255, 255, 255)
+    love.graphics.setColor(1, 1, 1, 1)
 
     love.graphics.draw(self.sky_fg_image, self.sky_bg_quad, 0, 0)
     love.graphics.draw(self.building_image, 0, 0)
@@ -131,9 +131,16 @@ function Game:key_pressed(key)
     if key == "space" then
         self:new_sky(true)
     elseif key == "f12" and not self.transition_stage then
-        local screenshot = love.graphics.newScreenshot();
-        screenshot:encode('png', self.sky.cons_name .. '.png');
-        Log:message("Screenshot saved as %s", love.filesystem.getSaveDirectory() .. '/' .. self.sky.cons_name .. '.png')
+        local file_name
+        if self.sky.cons_name ~= "" then
+            file_name = self.sky.cons_name .. '.png'
+        else
+            file_name = 'title.png'
+        end
+
+        local screenshot = love.graphics.captureScreenshot(file_name);
+
+        -- Log:message("Screenshot saved as %s", love.filesystem.getSaveDirectory() .. '/' .. file_name)
     end
 end
 
@@ -146,7 +153,7 @@ function Game:draw_cons_name(sky, alpha)
             sky.cons_name_color[1],
             sky.cons_name_color[2],
             sky.cons_name_color[3],
-            math.floor(sky.cons_name_color[4] * (alpha or 1.0)))
+            sky.cons_name_color[4] * (alpha or 1.0))
 
     local draw_x = math.floor(sky.cons_name_pos[1] - sky.cons_name_text:getWidth() * 0.5)
     love.graphics.draw(sky.cons_name_text, draw_x, sky.cons_name_pos[2])
@@ -157,7 +164,7 @@ function Game:draw_title(sky, alpha)
             sky.cons_name_color[1],
             sky.cons_name_color[2],
             sky.cons_name_color[3],
-            math.floor(sky.cons_name_color[4] * (alpha or 1.0)))
+            sky.cons_name_color[4] * (alpha or 1.0))
 
     love.graphics.draw(sky.title_text, unpack(sky.title_position))
     love.graphics.draw(sky.subtitle_text, unpack(sky.subtitle_position))
@@ -168,7 +175,7 @@ function Game:draw_cons_lines(sky, alpha)
             sky.cons_line_color[1],
             sky.cons_line_color[2],
             sky.cons_line_color[3],
-            math.floor(sky.cons_line_color[4] * (alpha or 1.0)))
+            sky.cons_line_color[4] * (alpha or 1.0))
 
     love.graphics.setLineWidth(sky.cons_line_width)
     for _, line in ipairs(sky.cons_lines) do
